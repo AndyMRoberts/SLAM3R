@@ -8,6 +8,7 @@ import json
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+import signal
 plt.ion()
 
 from slam3r.datasets.wild_seq import Seq_Data
@@ -35,8 +36,11 @@ class FrameReader:
             else:
                 if dataset[-3:] == "mp4":
                     self.type = "video"
+                elif dataset == "webcam":
+                    print("webcam selected")
+                    self.type = "webcam"
                 else:
-                    self.type = "imgs"
+                    self.type = "imgs"        
         else:
             self.type = "imgs"
         if self.type == "imgs":
@@ -54,12 +58,23 @@ class FrameReader:
             print(f"successful open the the video file {self.dataset}! start processing frame by frame...")
         elif self.type == "https":
             self.get_api = Get_online_video(self.dataset)
+        elif self.type == "webcam":
+            self.video_capture = cv2.VideoCapture('/dev/video0')
+            if not self.video_capture.isOpened():
+                print(f"error!can not open the webcam")
+                exit()
+            print(f"successfully opened the the webcam! start processing frame by frame...")
+        else:
+            print("No image input selected")
+        
+
+        
             
     def read(self):
         
         if self.type == "https":
             return self.get_api.cap.read()
-        elif self.type == "video":
+        elif self.type == "video" or self.type == 'webcam':
             return self.video_capture.read()
         elif self.type == "imgs":
             # print(f"reading the {self.readnum}th image")
@@ -68,7 +83,18 @@ class FrameReader:
             self.count += 1
             self.readnum += 1
             return True, self.data[0][self.readnum - 1]
-        
+
+stop_requested = False
+
+# this fundtion runs when ctrl+c is pressed, in order to cleanly exit a live webcam loop
+def handle_interrupt(signum, frame):
+    global stop_requested
+    print(f'Ctrl + c detected. Finsihing current loop before exiting.')
+    stop_requested = True
+
+# register the handler
+signal.signal(signal.SIGINT, handle_interrupt)
+
 def save_recon(views, pred_frame_num, save_dir, scene_id, save_all_views=False, 
                       imgs=None, registered_confs=None, 
                       num_points_save=200000, conf_thres_res=3, valid_masks=None):  
@@ -79,6 +105,10 @@ def save_recon(views, pred_frame_num, save_dir, scene_id, save_all_views=False,
     pcds = []
     rgbs = []
     for i in range(pred_frame_num):
+        # ----debugging------
+        # print(f'views {i} keys: {views[i].keys()}')
+        # print(f"pts3d_world: {views[i].get('pts3d_world')}")
+        # -------------------
         registered_pcd = to_numpy(views[i]['pts3d_world'][0])
         if registered_pcd.shape[0] == 3:
             registered_pcd = registered_pcd.transpose(1,2,0)
@@ -394,6 +424,8 @@ def pointmap_local_recon(local_views, i2p_model,
 def pointmap_global_register(ref_views, input_views, l2w_model,
                              per_frame_res, registered_confs_mean, 
                              current_frame_id, device="cuda", norm_input=False):
+    
+    print(f'registering global pointmap')
 
     view_to_register = input_views[current_frame_id]
     l2w_input_views = ref_views + [view_to_register]
@@ -495,8 +527,9 @@ def scene_recon_pipeline_online(i2p_model:Image2PointsModel,
     registered_confs_mean = []
     num_frame_read = 0
     num_frame_pass = 0
+    stop_loop = False
     
-    while True:
+    while not stop_requested:
         success, frame = frame_reader.read()
         if not success:
             break
@@ -532,16 +565,16 @@ def scene_recon_pipeline_online(i2p_model:Image2PointsModel,
                 
                 local_confs_mean_up2now, per_frame_res, input_views =\
                                 recover_points_in_initial_window(
-                                                 current_frame_id, buffering_set_ids, kf_stride,
-                                                 init_ref_id, per_frame_res,
-                                                 input_views, i2p_model, conf_thres_i2p)
+                                                current_frame_id, buffering_set_ids, kf_stride,
+                                                init_ref_id, per_frame_res,
+                                                input_views, i2p_model, conf_thres_i2p)
                 
                 # Special treatment: register the frames within the range of initial window with L2W model
                 if kf_stride > 1:
                     max_conf_mean, input_views, per_frame_res = \
                         register_initial_window_frames(init_num, kf_stride, buffering_set_ids,
-                                                       input_views, l2w_model, per_frame_res, 
-                                                       registered_confs_mean, args.device, args.norm_input)
+                                                    input_views, l2w_model, per_frame_res, 
+                                                    registered_confs_mean, args.device, args.norm_input)
                     # A problem is that the registered_confs_mean of the initial window is generated by I2P model,
                     # while the registered_confs_mean of the frames within the initial window is generated by L2W model,
                     # so there exists a gap. Here we try to align it.
@@ -568,7 +601,7 @@ def scene_recon_pipeline_online(i2p_model:Image2PointsModel,
             local_views = [input_views[current_frame_id]] + [input_views[id] for id in ref_ids]
             local_confs_mean_up2now, per_frame_res, input_views = \
                 pointmap_local_recon(local_views, i2p_model, current_frame_id, 0, per_frame_res,
-                                           input_views, conf_thres_i2p, local_confs_mean_up2now)
+                                        input_views, conf_thres_i2p, local_confs_mean_up2now)
 
             ref_views = [input_views[id] for id in ref_ids]
             input_views, per_frame_res, registered_confs_mean = pointmap_global_register(
@@ -588,11 +621,13 @@ def scene_recon_pipeline_online(i2p_model:Image2PointsModel,
             if conf < 10:
                 fail_view[current_frame_id] = conf.item()
             print(f"finish recover pcd of frame {current_frame_id}, with a mean confidence of {conf:.2f}.")
-            
+
+
     print(f"finish reconstructing {num_frame_read} frames")
     print(f'mean confidence for whole scene reconstruction: {torch.tensor(registered_confs_mean).mean().item():.2f}')
     print(f"{len(fail_view)} views with low confidence: ", {key:round(fail_view[key],2) for key in fail_view.keys()})
-    
+
+
     save_recon(input_views, num_frame_read, save_dir, scene_id, 
                       args.save_all_views, rgb_imgs, registered_confs=per_frame_res['l2w_confs'], 
                       num_points_save=num_points_save, 

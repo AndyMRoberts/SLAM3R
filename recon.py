@@ -6,6 +6,7 @@ from slam3r.datasets.wild_seq import Seq_Data
 from slam3r.models import Image2PointsModel, Local2WorldModel, inf
 from slam3r.utils.device import to_numpy
 import os
+import open3d as o3d
 
 
 def load_model(model_name, weights, device='cuda'):
@@ -116,6 +117,8 @@ if __name__ == "__main__":
     
     if args.online:
         picture_capture = FrameReader(args.dataset)
+        success, frame = picture_capture.read()
+        print("First frame success:", success)
         scene_recon_pipeline_online(i2p_model, l2w_model, picture_capture, args, save_dir)
     else:
         if args.dataset:
@@ -129,4 +132,10 @@ if __name__ == "__main__":
             dataset.set_epoch(0)
 
         scene_recon_pipeline_offline(i2p_model, l2w_model, dataset, args, save_dir)
+    
+    # pcd = o3d.io.read_point_cloud(f"/home/campus.ncl.ac.uk/c4071391/Projects/SLAM3R/results/{test_name}/{test_name}_online_recon.ply")
+    # o3d.visualization.draw_geometries([pcd])
+
+    
+
         

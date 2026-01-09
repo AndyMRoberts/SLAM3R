@@ -81,7 +81,7 @@ cd SLAM3R
 conda create -n slam3r python=3.11 cmake=3.14.0
 conda activate slam3r 
 # install torch according to your cuda version
-pip install torch==2.5.0 torchvision==0.20.0 torchaudio==2.5.0 --index-url https://download.pytorch.org/whl/cu118
+pip install torch==2.5.0 torchvision==0.20.0 torchaudio==2.5.0 --index-url https://download.pytorch.org/whl/cu121
 pip install -r requirements.txt
 # optional: install additional packages to support visualization and data preprocessing
 pip install -r requirements_optional.txt
