@@ -139,6 +139,19 @@ You can also run SLAM3R on your self-captured video with the steps above. You ca
 Here are [more tips](./docs/recon_tips.md) for the argument settings in the reconstruction script.
 
 
+## Live Webcam
+
+Live tests can be conducted by setting your webcam data on line 33 of recon_online_pipeline.py: 
+`self.webcam_name = '/dev/video0' # only tested on linux`
+
+The test can be ran with the following command
+`python recon.py --dataset="webcam" --test_name=webcam_test --online --save_dir=results/`
+
+Once enough images are collected the test can be ended with ctrl+c.
+
+You can also modify the lines at the end of recon.py to automatically visualise your 3d reconstruction. 
+
+
 ## Gradio interface
 We also provide two Gradio interfaces for online/offline reconstruction respectively, where you can upload a directory, specific images or a video to perform the reconstruction. After setting the reconstruction parameters, you can click the 'Run' button to start the process. Modifying the visualization parameters at the bottom allows you to directly display different visualization results without rerunning the inference.
 

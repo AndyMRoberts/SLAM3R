@@ -1,14 +1,15 @@
 #!/bin/bash
 
 
-TEST_DATASET="/home/campus.ncl.ac.uk/c4071391/datasets/SLAM3R/office_iphone/IMG_6407.mp4"
+# TEST_DATASET="/home/campus.ncl.ac.uk/c4071391/datasets/SLAM3R/office_iphone/IMG_6407.mp4" # set --online 
+TEST_DATASET="/home/campus.ncl.ac.uk/c4071391/datasets/SLAM3R/office_iphone/office_iphone_jpgs/" # to run offline
 
 
 ######################################################################################
 # set the parameters for whole scene reconstruction below
 # for defination of these parameters, please refer to the recon.py
 ######################################################################################
-TEST_NAME="office_iphone"
+TEST_NAME="office_iphone_offline"
 KEYFRAME_STRIDE=20
 UPDATE_BUFFER_INTV=3
 MAX_NUM_REGISTER=10

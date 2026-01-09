@@ -30,6 +30,7 @@ class FrameReader:
         self.type = ""
         self.count = 0
         self.readnum = 0
+        self.webcam_name = '/dev/video0' # only tested on linux
         if isinstance(dataset, str):
             if dataset.find(":") != -1:
                 self.type = "https"
@@ -59,7 +60,7 @@ class FrameReader:
         elif self.type == "https":
             self.get_api = Get_online_video(self.dataset)
         elif self.type == "webcam":
-            self.video_capture = cv2.VideoCapture('/dev/video0')
+            self.video_capture = cv2.VideoCapture(self.webcam_name)
             if not self.video_capture.isOpened():
                 print(f"error!can not open the webcam")
                 exit()
