@@ -59,6 +59,7 @@ TL;DR: A real-time RGB SLAM system that performs dense 3D reconstruction via poi
 - [Demo](#demo)
   - [Replica dataset](#replica-dataset)
   - [Self-captured outdoor data](#self-captured-outdoor-data)
+- [Live Webcam](#Live-Webcam)
 - [Gradio interface](#gradio-interface)
 - [Evaluation on the Replica dataset](#evaluation-on-the-replica-dataset)
 - [Training](#training)
