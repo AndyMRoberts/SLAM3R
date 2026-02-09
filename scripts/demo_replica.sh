@@ -21,6 +21,8 @@ NUM_POINTS_SAVE=1000000
 
 GPU_ID=-1
 
+sudo ./andy/metric_measurement/power data/measurements/replica_2000_online.csv &
+PID=$
 
 python recon.py \
 --test_name $TEST_NAME \
@@ -35,5 +37,7 @@ python recon.py \
 --num_points_save $NUM_POINTS_SAVE \
 --update_buffer_intv $UPDATE_BUFFER_INTV \
 --max_num_register $MAX_NUM_REGISTER \
-# --online \
+--online \
 --retrieve_freq 10 \
+
+kill $PID

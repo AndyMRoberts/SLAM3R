@@ -2,9 +2,12 @@ import torch
 import torch.nn as nn
 
 from .basic_blocks import Mlp, Attention, CrossAttention, DropPath
-try:
-    import xformers.ops as xops
-    XFORMERS_AVALIABLE = True
+
+XFORMERS_AVALIABLE = True # [sic] set this to false when exporting to onnx
+
+try:  
+    if XFORMERS_AVALIABLE:
+        import xformers.ops as xops
 except ImportError:
     print("xformers not avaliable, use self-implemented attention instead")
     XFORMERS_AVALIABLE = False
