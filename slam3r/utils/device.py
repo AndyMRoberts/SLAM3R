@@ -4,6 +4,8 @@
 # --------------------------------------------------------
 # utilitary functions for DUSt3R
 # --------------------------------------------------------
+import contextlib
+import os
 import numpy as np
 import torch
 
@@ -75,15 +77,26 @@ def collate_with_cat(whatever, lists=False):
 def listify(elems):
     return [x for e in elems for x in e]
 
-class MyNvtxRange():
+class _MyNvtxRangeImpl:
+    """Context manager for NVTX profiling."""
+
     def __init__(self, name):
         self.name = name
 
     def __enter__(self):
         torch.cuda.synchronize()
         torch.cuda.nvtx.range_push(self.name)
+        return self
 
     def __exit__(self, type, value, traceback):
         torch.cuda.synchronize()
         torch.cuda.nvtx.range_pop()
+        return None
+
+
+def MyNvtxRange(name):
+    """When SLAM3R_ONNX_EXPORT=1 returns nullcontext() so dynamo can trace (avoids GenericContextWrappingVariable break)."""
+    if os.environ.get("SLAM3R_ONNX_EXPORT") == "1":
+        return contextlib.nullcontext()
+    return _MyNvtxRangeImpl(name)
         

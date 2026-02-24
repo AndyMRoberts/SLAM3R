@@ -6,6 +6,7 @@
 # support arbitray number of input views,:one reference view and serveral sources views
 # --------------------------------------------------------
 
+import contextlib
 import os
 import torch
 import torch.nn as nn
@@ -29,7 +30,12 @@ from huggingface_hub import PyTorchModelHubMixin
 
 inf = float('inf')
 
-       
+
+class _NoopPbar:
+    """No-op progress bar for use under SLAM3R_ONNX_EXPORT (avoids tracing through tqdm)."""
+    def update(self, n=1): pass
+
+
 class Multiview3D(nn.Module, PyTorchModelHubMixin):
     """Backbone of SLAM3R model, with the following components:
     - patch embeddings
@@ -261,12 +267,16 @@ class Multiview3D(nn.Module, PyTorchModelHubMixin):
         B = views[0][input_type].shape[0]
         res_shapes, res_feats, res_poses = [],[],[]
         minibatch_num = (len(views)-1)//view_batchsize+1
-        
-        with tqdm(total=len(views), disable=silent, desc="encoding images") as pbar:   
+
+        if os.environ.get("SLAM3R_ONNX_EXPORT") == "1":
+            pbar_ctx = contextlib.nullcontext(_NoopPbar())
+        else:
+            pbar_ctx = tqdm(total=len(views), disable=silent, desc="encoding images")
+        with pbar_ctx as pbar:
             for i in range(0,minibatch_num):
                 batch_views = views[i*view_batchsize:(i+1)*view_batchsize]
                 batch_imgs = [view[input_type] for view in batch_views]
-                batch_shapes = [view.get('true_shape', 
+                batch_shapes = [view.get('true_shape',
                                         torch.tensor(view[input_type].shape[-2:])[None].repeat(B, 1))
                                 for view in batch_views]  # vb*(B,2)
                 res_shapes += batch_shapes
@@ -275,9 +285,8 @@ class Multiview3D(nn.Module, PyTorchModelHubMixin):
                 out, pos, _ = self._encode_image(batch_imgs,batch_shapes,normalize) # (vb*B, S, D), (vb*B, S, 2)
                 res_feats += out.chunk(len(batch_views), dim=0) # V*(B, S, D)
                 res_poses += pos.chunk(len(batch_views), dim=0) # V*(B, S, 2)
-               
                 pbar.update(len(batch_views))
-                
+
         return res_shapes, res_feats, res_poses    
 
     def _decode_multiview(self, ref_feats:torch.Tensor, src_feats:torch.Tensor, 
